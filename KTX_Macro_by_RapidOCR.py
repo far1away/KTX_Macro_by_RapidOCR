@@ -180,6 +180,7 @@ current_step = 1
 step_start_time = time.time()  # 단계별 타이머 측정 시작
 last_heartbeat_time = time.time()
 timeout_recovery = False
+timeout_recovery_step = 1
 
 print("\n🚀 [크로스포맷/휴대폰 호환 버전] 매크로 가동 시작!")
 print("진행 순서: [1단계] 간편 예매 -> [2단계] 바로 예매 -> [3단계] Confirm(1단계 복귀) OR 결제할 티켓(성공)")
@@ -197,7 +198,7 @@ try:
         # 타임아웃 발생 시 현재 화면에서 보이는 단계부터 순서대로 재개합니다.
         if time.time() - step_start_time > STEP_TIMEOUT:
             print(f"\n[{time.strftime('%H:%M:%S')}] ⏳ {STEP_TIMEOUT}초 타임아웃 발생! 화면에 보이는 단계부터 재시도합니다.")
-            current_step = 1
+            timeout_recovery_step = current_step
             step_start_time = time.time()
             timeout_recovery = True
 
@@ -210,16 +211,19 @@ try:
 
         if timeout_recovery and result:
             recovered_texts = [normalize_ocr_text(text) for _, text, _ in result]
-            if any("간편예매" in text for text in recovered_texts):
+            if timeout_recovery_step <= 1 and any("간편예매" in text for text in recovered_texts):
                 current_step = 1
                 timeout_recovery = False
-            elif any("바로예매" in text for text in recovered_texts):
+            elif timeout_recovery_step <= 2 and any("바로예매" in text for text in recovered_texts):
                 current_step = 2
                 timeout_recovery = False
             elif (
+                timeout_recovery_step <= 3
+                and (
                 any(TARGET_KEYWORD in text for text in recovered_texts)
                 or any(text in CONFIRM_TEXTS for text in recovered_texts)
                 or find_blue_ocr_button(frame, result)
+                )
             ):
                 current_step = 3
                 timeout_recovery = False
