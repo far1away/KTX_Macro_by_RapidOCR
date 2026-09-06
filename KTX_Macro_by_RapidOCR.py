@@ -16,7 +16,7 @@ if not os.path.exists(REC_MODEL_PATH) or not os.path.exists(KEYS_PATH):
 
 ocr = RapidOCR(rec_model_path=REC_MODEL_PATH, keys_path=KEYS_PATH)
 TARGET_KEYWORD = "결제할티켓"
-CONFIRM_TEXTS = ("confirm", "확인", "거후")
+CONFIRM_TEXTS = ("confirm", "확인")
 
 # =================================================================
 # [설정] 텔레그램 봇 정보 (변수에 값을 채워 넣으세요)
@@ -180,11 +180,11 @@ current_step = 1
 step_start_time = time.time()  # 단계별 타이머 측정 시작
 last_heartbeat_time = time.time()
 timeout_recovery = False
-timeout_recovery_step = 1
+step3_failure_count = 0
 
 print("\n🚀 [크로스포맷/휴대폰 호환 버전] 매크로 가동 시작!")
 print("진행 순서: [1단계] 간편 예매 -> [2단계] 바로 예매 -> [3단계] Confirm(1단계 복귀) OR 결제할 티켓(성공)")
-print("⏱️ 각 단계에서 60초 이상 반응이 없으면 자동으로 1단계로 리셋됩니다.\n")
+print(f"⏱️ 각 단계에서 {STEP_TIMEOUT}초 이상 반응이 없으면 자동으로 복구를 시도합니다.\n")
 
 # 매크로 시작 시 텔레그램 알림 전송
 send_telegram_message("🚀 [매크로 시작] 예매 자동화 프로그램이 가동되었습니다. 모니터링을 시작합니다!")
@@ -198,9 +198,20 @@ try:
         # 타임아웃 발생 시 현재 화면에서 보이는 단계부터 순서대로 재개합니다.
         if time.time() - step_start_time > STEP_TIMEOUT:
             print(f"\n[{time.strftime('%H:%M:%S')}] ⏳ {STEP_TIMEOUT}초 타임아웃 발생! 화면에 보이는 단계부터 재시도합니다.")
-            timeout_recovery_step = current_step
+            if current_step == 3:
+                step3_failure_count += 1
+                print(f"[{time.strftime('%H:%M:%S')}] [3단계] 확인 버튼 탐색 실패 {step3_failure_count}/10회")
+                if step3_failure_count >= 10:
+                    print(f"[{time.strftime('%H:%M:%S')}] [3단계] 10회 실패로 1단계로 초기화합니다.")
+                    current_step = 1
+                    step3_failure_count = 0
+                    timeout_recovery = False
+                else:
+                    timeout_recovery = True
+            else:
+                current_step = max(1, current_step - 1)
+                timeout_recovery = True
             step_start_time = time.time()
-            timeout_recovery = True
 
         frame = get_adb_screenshot()
         if frame is None:
@@ -209,36 +220,105 @@ try:
 
         result, _ = ocr(frame)
 
-        if timeout_recovery and result:
-            recovered_texts = [normalize_ocr_text(text) for _, text, _ in result]
-            if timeout_recovery_step <= 1 and any("간편예매" in text for text in recovered_texts):
-                current_step = 1
-                timeout_recovery = False
-            elif timeout_recovery_step <= 2 and any("바로예매" in text for text in recovered_texts):
-                current_step = 2
-                timeout_recovery = False
-            elif (
-                timeout_recovery_step <= 3
-                and (
-                any(TARGET_KEYWORD in text for text in recovered_texts)
-                or any(text in CONFIRM_TEXTS for text in recovered_texts)
-                or find_blue_ocr_button(frame, result)
-                )
+        has_quick_booking = bool(result) and any(
+            prob > 0.2 and "간편예매" in normalize_ocr_text(text)
+            for _, text, prob in result
+        )
+        visible_blue_button = (
+            find_blue_ocr_button(frame, result)
+            if result and not has_quick_booking
+            else None
+        )
+        if result:
+            visible_texts = [normalize_ocr_text(text) for _, text, _ in result]
+            visible_step = 0
+            if (
+                any(TARGET_KEYWORD in text for text in visible_texts)
+                or any(text in CONFIRM_TEXTS for text in visible_texts)
             ):
-                current_step = 3
+                visible_step = 3
+            elif any("바로예매" in text for text in visible_texts):
+                visible_step = 2
+            elif any("간편예매" in text for text in visible_texts):
+                visible_step = 1
+            elif visible_blue_button:
+                visible_step = 3
+
+            if visible_step > current_step:
+                print(f"\n[{time.strftime('%H:%M:%S')}] [상태 감지] 화면에서 {visible_step}단계를 확인해 해당 단계로 전환합니다.")
+                current_step = visible_step
+                step_start_time = time.time()
                 timeout_recovery = False
 
-        # OCR 결과가 비어도 파란색 확인 버튼 검사는 실행합니다.
-        if current_step == 3 and not result:
-            blue_button = find_blue_button(frame)
-            if blue_button:
-                cx, cy = blue_button
+        if current_step < 3 and not result:
+            visible_blue_button = find_blue_button(frame)
+            if visible_blue_button:
+                cx, cy = visible_blue_button
+                print(f"\n[{time.strftime('%H:%M:%S')}] [상태 감지] OCR 없이 파란 확인 버튼을 확인해 3단계로 전환합니다.")
                 send_adb_touch(cx, cy)
-                print(f"[{time.strftime('%H:%M:%S')}] [3단계] 파란 확인 버튼 터치 -> 1단계 복귀 ({cx}, {cy})")
                 current_step = 1
+                step3_failure_count = 0
                 step_start_time = time.time()
+                timeout_recovery = False
                 time.sleep(0.5)
                 continue
+
+        if timeout_recovery and current_step == 3:
+            confirm_box = None
+            confirm_source = "OCR"
+            for box, text, prob in result or []:
+                if prob > 0.2 and normalize_ocr_text(text) in CONFIRM_TEXTS:
+                    confirm_box = box
+                    break
+
+            if confirm_box is None:
+                enlarged_result, scale = get_upscaled_ocr(frame)
+                for box, text, prob in enlarged_result or []:
+                    if prob > 0.2 and normalize_ocr_text(text) in CONFIRM_TEXTS:
+                        confirm_box = [
+                            [point[0] / scale, point[1] / scale]
+                            for point in box
+                        ]
+                        break
+
+            if confirm_box is None and not has_quick_booking:
+                confirm_box = find_blue_ocr_button(frame, result)
+                confirm_source = "파란 버튼 OCR 주변 검출"
+
+            if confirm_box is None and not has_quick_booking:
+                confirm_box = find_blue_button(frame)
+                confirm_source = "파란 버튼 테두리 검출"
+
+            if confirm_box is not None:
+                if confirm_source == "OCR":
+                    cx = int((confirm_box[0][0] + confirm_box[2][0]) / 2)
+                    cy = int((confirm_box[0][1] + confirm_box[2][1]) / 2)
+                else:
+                    cx, cy = confirm_box
+                send_adb_touch(cx, cy)
+                print(f"[{time.strftime('%H:%M:%S')}] [타임아웃 복구] {confirm_source}로 확인 버튼 터치 -> 1단계 복귀")
+                current_step = 1
+                step3_failure_count = 0
+                step_start_time = time.time()
+                timeout_recovery = False
+                time.sleep(0.5)
+                continue
+
+        if timeout_recovery and result:
+            recovered_texts = [normalize_ocr_text(text) for _, text, _ in result]
+            if (
+                any(TARGET_KEYWORD in text for text in recovered_texts)
+                or any(text in CONFIRM_TEXTS for text in recovered_texts)
+            ):
+                current_step = 3
+                step3_failure_count = 0
+                timeout_recovery = False
+            elif any("바로예매" in text for text in recovered_texts):
+                current_step = 2
+                timeout_recovery = False
+            elif any("간편예매" in text for text in recovered_texts):
+                current_step = 1
+                timeout_recovery = False
 
         if result:
             # [1단계] '간편 예매'
@@ -269,6 +349,7 @@ try:
                         send_adb_touch(cx, cy)
                         print(f"[{time.strftime('%H:%M:%S')}] [2단계] '바로 예매' 터치! ({cx}, {cy})")
                         current_step = 3
+                        step3_failure_count = 0
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
                         break
@@ -298,6 +379,7 @@ try:
                         send_adb_touch(cx, cy)
                         print(f"[{time.strftime('%H:%M:%S')}] [3단계] 'Confirm or 확인' 터치 -> 1단계 복귀")
                         current_step = 1
+                        step3_failure_count = 0
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
                         break
@@ -313,29 +395,22 @@ try:
                             send_adb_touch(cx, cy)
                             print(f"[{time.strftime('%H:%M:%S')}] [3단계] 확대 OCR로 'Confirm or 확인' 터치 -> 1단계 복귀")
                             current_step = 1
+                            step3_failure_count = 0
                             step_start_time = time.time()
                             found = True
                             break
 
-                if not found:
+                if not found and not has_quick_booking:
                     blue_ocr_button = find_blue_ocr_button(frame, result)
                     if blue_ocr_button:
                         cx, cy = blue_ocr_button
                         send_adb_touch(cx, cy)
                         print(f"[{time.strftime('%H:%M:%S')}] [3단계] OCR 주변 파란 확인 버튼 터치 -> 1단계 복귀 ({cx}, {cy})")
                         current_step = 1
+                        step3_failure_count = 0
                         step_start_time = time.time()
                         found = True
 
-                if not found:
-                    blue_button = find_blue_button(frame)
-                    if blue_button:
-                        cx, cy = blue_button
-                        send_adb_touch(cx, cy)
-                        print(f"[{time.strftime('%H:%M:%S')}] [3단계] 파란 확인 버튼 터치 -> 1단계 복귀 ({cx}, {cy})")
-                        current_step = 1
-                        step_start_time = time.time()
-                        found = True
                 if not found:
                     print(f"[{time.strftime('%H:%M:%S')}] [3단계] 스캔 중 (대기 시간: {int(time.time() - step_start_time)}초)...", end="\r")
 
