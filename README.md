@@ -41,7 +41,7 @@
 
    ### 3단계: 코드에 적용하기
    발급받은 토큰과 챗 ID를 `booking_script.py` 상단의 변수에 각각 입력합니다.
-   
+
    TELEGRAM_TOKEN = "여기에_봇_토큰_입력"  # 예: "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
    CHAT_ID = "여기에_챗_아이디_입력"         # 예: "123456789"
 
