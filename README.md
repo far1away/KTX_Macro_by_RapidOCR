@@ -1,6 +1,6 @@
-# 🚀 Android Emulator RapidOCR Ticket Automation
+# 🚀 Android RapidOCR Ticket Automation
 
-안드로이드 에뮬레이터(LDPlayer) 환경에서 OCR(문자 인식)을 활용하여 티켓 예매 과정을 자동화하는 초고속 파이썬 스크립트입니다.
+안드로이드 에뮬레이터(LDPlayer) 또는 실제 휴대폰에서 OCR(문자 인식)을 활용하여 티켓 예매 과정을 자동화하는 파이썬 스크립트입니다.
 
 ## 📌 주요 특징
 * **가벼운 연산:** RapidOCR(ONNX Runtime)을 사용하여 CPU 부하를 최소화하고 응답 속도를 극대화했습니다.
