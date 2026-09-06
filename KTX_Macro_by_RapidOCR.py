@@ -24,7 +24,7 @@ CONFIRM_TEXTS = ("confirm", "확인", "거후")
 TELEGRAM_TOKEN = ""  # 예: "123456789:ABCdefGhI..."
 CHAT_ID = ""    # 예: "123456789"
 HEARTBEAT_INTERVAL = 30 * 60
-STEP_TIMEOUT = 10
+STEP_TIMEOUT = 5
 
 def send_telegram_message(message):
     """텔레그램 메시지 전송 함수"""
