@@ -24,6 +24,7 @@ CONFIRM_TEXTS = ("confirm", "확인", "거후")
 TELEGRAM_TOKEN = ""  # 예: "123456789:ABCdefGhI..."
 CHAT_ID = ""    # 예: "123456789"
 HEARTBEAT_INTERVAL = 30 * 60
+STEP_TIMEOUT = 10
 
 def send_telegram_message(message):
     """텔레그램 메시지 전송 함수"""
@@ -194,8 +195,8 @@ try:
             last_heartbeat_time = time.time()
 
         # 타임아웃 발생 시 현재 화면에서 보이는 단계부터 순서대로 재개합니다.
-        if time.time() - step_start_time > 60:
-            print(f"\n[{time.strftime('%H:%M:%S')}] ⏳ 60초 타임아웃 발생! 화면에 보이는 단계부터 재시도합니다.")
+        if time.time() - step_start_time > STEP_TIMEOUT:
+            print(f"\n[{time.strftime('%H:%M:%S')}] ⏳ {STEP_TIMEOUT}초 타임아웃 발생! 화면에 보이는 단계부터 재시도합니다.")
             current_step = 1
             step_start_time = time.time()
             timeout_recovery = True
@@ -249,7 +250,6 @@ try:
                         current_step = 2
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
-                        time.sleep(0.5)
                         break
                 if not found:
                     print(f"[{time.strftime('%H:%M:%S')}] [1단계] 스캔 중 (대기 시간: {int(time.time() - step_start_time)}초)...", end="\r")
@@ -267,7 +267,6 @@ try:
                         current_step = 3
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
-                        time.sleep(0.5)
                         break
                 if not found:
                     print(f"[{time.strftime('%H:%M:%S')}] [2단계] 스캔 중 (대기 시간: {int(time.time() - step_start_time)}초)...", end="\r")
@@ -297,7 +296,6 @@ try:
                         current_step = 1
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
-                        time.sleep(0.5)
                         break
 
                 # 휴대폰에서는 확인 버튼이 작게 캡처될 수 있어 확대 이미지로 한 번 더 검사합니다.
@@ -313,7 +311,6 @@ try:
                             current_step = 1
                             step_start_time = time.time()
                             found = True
-                            time.sleep(0.5)
                             break
 
                 if not found:
@@ -325,7 +322,6 @@ try:
                         current_step = 1
                         step_start_time = time.time()
                         found = True
-                        time.sleep(0.5)
 
                 if not found:
                     blue_button = find_blue_button(frame)
@@ -336,7 +332,6 @@ try:
                         current_step = 1
                         step_start_time = time.time()
                         found = True
-                        time.sleep(0.5)
                 if not found:
                     print(f"[{time.strftime('%H:%M:%S')}] [3단계] 스캔 중 (대기 시간: {int(time.time() - step_start_time)}초)...", end="\r")
 
