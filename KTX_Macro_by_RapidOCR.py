@@ -15,7 +15,6 @@ if not os.path.exists(REC_MODEL_PATH) or not os.path.exists(KEYS_PATH):
     exit()
 
 ocr = RapidOCR(rec_model_path=REC_MODEL_PATH, keys_path=KEYS_PATH)
-DEVICE_ID = "127.0.0.1:5555"
 TARGET_KEYWORD = "결제할티켓"
 
 # =================================================================
@@ -44,7 +43,38 @@ def send_telegram_message(message):
     except Exception as e:
         print(f"\n[오류] 텔레그램 통신 중 에러 발생: {e}")
 
-subprocess.run(f"adb connect {DEVICE_ID}", shell=True, stdout=subprocess.DEVNULL)
+def get_connected_device():
+    """연결된 에뮬레이터 또는 실제 휴대폰의 ADB ID를 자동 탐지 (호환성 개선 버전)"""
+    try:
+        process = subprocess.Popen("adb devices", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+        stdout, _ = process.communicate()
+        lines = stdout.strip().split("\n")[1:]
+        devices = []
+        for line in lines:
+            if "\tdevice" in line:
+                dev_id = line.split("\t")[0]
+                devices.append(dev_id)
+        
+        if not devices:
+            return None
+        
+        selected = devices[0]
+        print(f"🔗 [자동 감지된 기기] {selected}")
+        return selected
+    except Exception as e:
+        print(f"[오류] 기기 탐지 실패: {e}")
+        return None
+
+# 기기 자동 연결 시도 (LDPlayer 또는 실제 폰 공용)
+DEVICE_ID = get_connected_device()
+if not DEVICE_ID:
+    print("\n[오류] 연결된 기기(에뮬레이터 또는 USB 휴대폰)를 찾을 수 없습니다.")
+    print("👉 LDPlayer가 켜져 있거나, 휴대폰이 USB 디버깅 허용 상태로 연결되어 있는지 확인해주세요.")
+    exit()
+
+# IP 포트 형태(LDPlayer 등)인 경우 adb connect 시도
+if ":" in DEVICE_ID:
+    subprocess.run(f"adb connect {DEVICE_ID}", shell=True, stdout=subprocess.DEVNULL)
 
 def get_adb_screenshot():
     pipe = subprocess.Popen(
@@ -62,7 +92,7 @@ def send_adb_touch(x, y):
 current_step = 1
 step_start_time = time.time()  # 단계별 타이머 측정 시작
 
-print("\n🚀 [타임아웃 적용 초고속 버전] 매크로 가동 시작!")
+print("\n🚀 [크로스포맷/휴대폰 호환 버전] 매크로 가동 시작!")
 print("진행 순서: [1단계] 간편 예매 -> [2단계] 바로 예매 -> [3단계] Confirm(1단계 복귀) OR 결제할 티켓(성공)")
 print("⏱️ 각 단계에서 60초 이상 반응이 없으면 자동으로 1단계로 리셋됩니다.\n")
 
@@ -137,11 +167,11 @@ try:
                 found = False
                 for box, text, prob in result:
                     clean_text = text.replace(" ", "").lower()
-                    if prob > 0.2 and "confirm" in clean_text:
+                    if prob > 0.2 and ("confirm" in clean_text or "확인" in clean_text):
                         cx = int((box[0][0] + box[2][0]) / 2)
                         cy = int((box[0][1] + box[2][1]) / 2)
                         send_adb_touch(cx, cy)
-                        print(f"[{time.strftime('%H:%M:%S')}] [3단계] 'Confirm' 터치 -> 1단계 복귀")
+                        print(f"[{time.strftime('%H:%M:%S')}] [3단계] 'Confirm or 확인' 터치 -> 1단계 복귀")
                         current_step = 1
                         step_start_time = time.time()  # 타이머 리셋
                         found = True
