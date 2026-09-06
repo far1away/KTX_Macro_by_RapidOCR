@@ -1,4 +1,4 @@
-# KTX_Macro_by_RapidOCR# 🚀 Android Emulator RapidOCR Ticket Automation
+# 🚀 Android Emulator RapidOCR Ticket Automation
 
 안드로이드 에뮬레이터(LDPlayer) 환경에서 OCR(문자 인식)을 활용하여 티켓 예매 과정을 자동화하는 초고속 파이썬 스크립트입니다.
 
@@ -17,14 +17,42 @@
 ### 1. 모바일 가상화 프로그램(LDPlayer) 설정
 1. **LDPlayer 다운로드 및 설치**
    * [LDPlayer 공식 홈페이지](https://www.ldplayer.net/)에서 에뮬레이터를 다운로드하여 설치합니다.
-2. **ADB 디버깅 설정 (딸깍 설정)**
+2. **ADB 디버깅 설정 (로컬 디버깅 활성화)**
    * LDPlayer 우측 상단의 **[설정(톱니바퀴)] ➔ [기타 설정(또는 모델 설정)]** 등으로 이동합니다.
-   * **[ADB 디버깅]** 항목을 찾아 **[열기(사용)]**로 체크(딸깍)해 줍니다.
-3. **ADB 연결 확인**
+   * **[ADB 디버깅]** 항목을 **[로컬 디버깅(Local Debugging)]**으로 선택하여 켜줍니다.
+3. **KTX 앱 간편예약 사전 설정 (중요)**
+   * 코레일톡(또는 예매 앱) 내에서 **간편예약 기능을 미리 설정**해 두어야 합니다.
+   * **주의:** 앱 내에 등록된 간편예약 목록 중 **가장 첫 번째(상단)에 등록된 간편예약 항목**이 매크로의 예약 대상이 되므로, 원하는 승차권 조건을 첫 번째 순서로 반드시 배치해 두어야 합니다.
+4. **ADB 연결 확인**
    * 스크립트는 실행 시 자동으로 `127.0.0.1:5555` 포트를 통해 에뮬레이터와 통신하므로, LDPlayer가 켜져만 있으면 됩니다.
 
-### 2. Python 환경 및 필수 패키지 설치
+### 2. 텔레그램 봇 토큰 및 Chat ID 설정
+   ### 1단계: 텔레그램 봇 생성하기 (BotFather 이용)
+   1. 텔레그램 앱을 켜고 검색창에 **`@BotFather`** (공식 봇 관리자)를 검색하여 대화방을 엽니다.
+   2. 하단의 **[시작하기]** 버튼을 누르거나 채팅창에 `/newbot`을 입력합니다.
+   3. 봇의 **이름(Display Name)**을 입력합니다. (예: `티켓팅 알림봇`)
+   4. 봇의 **아이디(Username)**를 입력합니다. (반드시 영문으로 작성해야 하며, 끝에 반드시 **`bot`** 또는 **`_bot`**으로 끝나야 합니다. 예: `my_ticket_helper_bot`)
+   5. 생성이 완료되면 긴 영어로 된 **API 토큰(HTTP API Token)**이 발급됩니다. 이 토큰을 복사해 둡니다.
+
+   ### 2단계: 챗 ID (Chat ID) 확인하기
+   1. 텔레그램 검색창에 **`@userinfobot`** 또는 **`@getmyid_bot`**을 검색합니다.
+   2. 대화방에 들어가 `/start`를 입력합니다.
+   3. 봇이 답장으로 보내주는 숫자들 중 **`Id`** (예: `123456789`)에 해당하는 숫자가 본인의 챗 ID입니다. 이 번호를 복사해 둡니다.
+
+   ### 3단계: 코드에 적용하기
+   발급받은 토큰과 챗 ID를 `booking_script.py` 상단의 변수에 각각 입력합니다.
+
+   ```python
+   TELEGRAM_TOKEN = "여기에_봇_토큰_입력"  # 예: "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+   CHAT_ID = "여기에_챗_아이디_입력"         # 예: "123456789"
+
+### 3. Python 환경 및 필수 패키지 설치
 1. Python (3.8 이상 권장) 설치
 2. 터미널에 아래 명령어 입력하여 필수 패키지 설치
    ```bash
    pip install rapidocr_onnxruntime opencv-python numpy requests
+
+
+### 4. 실행방법
+1. LDPlyaer에 KTX 앱을 켜둔채로 하기 명령대로 실행
+python KTX_Macro_by_RapidOCR.py
