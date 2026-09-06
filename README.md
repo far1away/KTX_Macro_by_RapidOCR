@@ -41,8 +41,7 @@
 
    ### 3단계: 코드에 적용하기
    발급받은 토큰과 챗 ID를 `booking_script.py` 상단의 변수에 각각 입력합니다.
-
-   ```python
+   
    TELEGRAM_TOKEN = "여기에_봇_토큰_입력"  # 예: "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
    CHAT_ID = "여기에_챗_아이디_입력"         # 예: "123456789"
 
@@ -51,7 +50,7 @@
 2. 터미널에 아래 명령어 입력하여 필수 패키지 설치
    ```bash
    pip install rapidocr_onnxruntime opencv-python numpy requests
-
+   ```
 
 ### 4. 실행방법
 1. LDPlyaer에 KTX 앱을 켜둔채로 하기 명령대로 실행
