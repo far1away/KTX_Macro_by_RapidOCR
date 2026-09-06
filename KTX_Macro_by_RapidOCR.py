@@ -6,25 +6,32 @@ import time
 import os
 import requests
 
-print("초고속 RapidOCR 엔진 로딩 중...")
+# =================================================================
+# [사용자 설정] 여기만 수정하면 됩니다.
+# =================================================================
+# 텔레그램 봇 정보
+TELEGRAM_TOKEN = ""  # 예: "123456789:ABCdefGhI..."
+CHAT_ID = ""  # 예: "123456789"
+
+# 매크로 동작 설정
+HEARTBEAT_INTERVAL = 30 * 60
+STEP_TIMEOUT = 5
+TARGET_KEYWORD = "결제할티켓"
+CONFIRM_TEXTS = ("confirm", "확인")
+
+# OCR 파일 설정
 REC_MODEL_PATH = "korean_PP-OCRv3_rec_infer.onnx"
 KEYS_PATH = "korean_dict.txt"
 
+# =================================================================
+# [초기화]
+# =================================================================
+print("초고속 RapidOCR 엔진 로딩 중...")
 if not os.path.exists(REC_MODEL_PATH) or not os.path.exists(KEYS_PATH):
     print(f"[오류] 모델 파일 또는 사전 파일이 없습니다.")
     exit()
 
 ocr = RapidOCR(rec_model_path=REC_MODEL_PATH, keys_path=KEYS_PATH)
-TARGET_KEYWORD = "결제할티켓"
-CONFIRM_TEXTS = ("confirm", "확인")
-
-# =================================================================
-# [설정] 텔레그램 봇 정보 (변수에 값을 채워 넣으세요)
-# =================================================================
-TELEGRAM_TOKEN = ""  # 예: "123456789:ABCdefGhI..."
-CHAT_ID = ""    # 예: "123456789"
-HEARTBEAT_INTERVAL = 30 * 60
-STEP_TIMEOUT = 5
 
 def send_telegram_message(message):
     """텔레그램 메시지 전송 함수"""
