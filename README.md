@@ -1,0 +1,1 @@
+# KTX_Macro_by_RapidOCR
